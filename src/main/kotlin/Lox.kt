@@ -5,11 +5,27 @@ import kotlin.system.exitProcess
 
 class Lox {
     companion object {
+        val interpreter = Interpreter()
+
         var hadError = false
+        var hadRuntimeError = false
         val keywords = getKeywordMap()
 
         fun error(line: Int, message: String) {
             report(line, "", message)
+        }
+
+        fun error(token: Token, message: String) {
+            if (token.type == TokenType.EOF) {
+                report(token.line, " at end", message)
+            } else {
+                report(token.line, " at '${token.lexeme}'", message)
+            }
+        }
+
+        fun runtimeError(error: RuntimeError) {
+            println(error.message + "\n[line " + error.token.line + "]")
+            hadRuntimeError = true
         }
 
         private fun report(line: Int, where: String, message: String) {
@@ -61,12 +77,19 @@ class Lox {
             exitProcess(65)
         }
 
+        if (hadRuntimeError) {
+            exitProcess(70)
+        }
+
         val scanner = Scanner(source)
         val tokens = scanner.scanTokens()
+        val parser = Parser(tokens)
+        val statements = parser.parse()
 
-        // for now, just print the tokens
-        for (token in tokens) {
-            println(token.toString())
-        }
+        // stop if there was a syntax error
+        if (hadError) return
+
+        if (statements == null) return
+        interpreter.interpret(statements)
     }
 }
